@@ -1,0 +1,31 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html, body, #root {
+    height: 100%;
+    font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  }
+}
+
+@layer components {
+  .panel {
+    @apply rounded-lg border border-terminal-border bg-terminal-panel p-3 shadow-sm;
+  }
+  .panel-title {
+    @apply text-[11px] font-semibold uppercase tracking-widest text-zinc-400 mb-2 flex items-center justify-between;
+  }
+  .metric {
+    @apply flex items-baseline justify-between text-sm;
+  }
+  .metric-label {
+    @apply text-zinc-500;
+  }
+  .metric-value {
+    @apply font-mono tabular-nums;
+  }
+  .pill {
+    @apply px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wider;
+  }
+}
