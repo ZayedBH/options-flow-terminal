@@ -16,7 +16,6 @@ Conventions
 from __future__ import annotations
 
 import math
-from collections import defaultdict
 from datetime import UTC, datetime
 
 import numpy as np
@@ -125,7 +124,7 @@ def enrich_chain(
 
 def build_gex_profile(chain: ChainSnapshot) -> GEXProfile:
     """Aggregate per-strike exposures and derive summary statistics."""
-    by_strike: dict[float, GEXLevel] = defaultdict(lambda: GEXLevel(strike=0.0))
+    by_strike: dict[float, GEXLevel] = {}
     total_gex = total_dex = total_vex = total_vanna = total_charm = 0.0
     for row in chain.rows:
         k = row.contract.strike

@@ -15,15 +15,6 @@ class Settings(BaseSettings):
     backend_port: int = Field(default=8000)
     log_level: str = Field(default="INFO")
 
-    postgres_user: str = Field(default="options")
-    postgres_password: str = Field(default="options")
-    postgres_db: str = Field(default="options_terminal")
-    postgres_host: str = Field(default="postgres")
-    postgres_port: int = Field(default=5432)
-
-    redis_host: str = Field(default="redis")
-    redis_port: int = Field(default=6379)
-
     data_provider: str = Field(default="yfinance")
     polygon_api_key: str | None = Field(default=None)
     tradier_api_key: str | None = Field(default=None)
@@ -47,17 +38,6 @@ class Settings(BaseSettings):
     @property
     def futures_symbol_list(self) -> list[str]:
         return [s.strip().upper() for s in self.futures_symbols.split(",") if s.strip()]
-
-    @property
-    def database_url(self) -> str:
-        return (
-            f"postgresql+asyncpg://{self.postgres_user}:{self.postgres_password}"
-            f"@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"
-        )
-
-    @property
-    def redis_url(self) -> str:
-        return f"redis://{self.redis_host}:{self.redis_port}/0"
 
 
 @lru_cache

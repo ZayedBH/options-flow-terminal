@@ -20,87 +20,90 @@ export function IVDashboard({ iv }: Props) {
   if (!iv) {
     return (
       <div className="panel">
-        <div className="panel-title">Volatility</div>
-        <div className="text-zinc-500 text-sm">No data yet…</div>
+        <div className="panel-hdr">Volatility</div>
+        <div className="px-2 py-3 text-bb-muted text-xs">No data yet…</div>
       </div>
     );
   }
-  const data = TENOR_ORDER.filter((t) => iv.term_structure[t] !== undefined).map(
-    (t) => ({ tenor: t, iv: iv.term_structure[t] * 100 })
-  );
+
+  const stateColor =
+    iv.state === "expansion"
+      ? "text-bb-orange"
+      : iv.state === "compression"
+      ? "text-bb-cyan"
+      : iv.state === "crush"
+      ? "text-bb-red"
+      : "text-bb-muted";
+
+  const data = TENOR_ORDER.filter((t) => iv.term_structure[t] !== undefined).map((t) => ({
+    tenor: t,
+    iv: iv.term_structure[t] * 100,
+  }));
 
   return (
     <div className="panel">
-      <div className="panel-title">
+      <div className="panel-hdr">
         <span>Volatility · {iv.underlying}</span>
-        <span
-          className={
-            iv.state === "expansion"
-              ? "text-orange-300 normal-case"
-              : iv.state === "compression"
-              ? "text-cyan-300 normal-case"
-              : iv.state === "crush"
-              ? "text-rose-400 normal-case"
-              : "text-zinc-500 normal-case"
-          }
-        >
-          {iv.state}
-        </span>
+        <span className={`normal-case font-mono font-normal ${stateColor}`}>{iv.state}</span>
       </div>
 
-      <div className="grid grid-cols-2 gap-2 text-xs mb-3">
-        <Stat label="ATM IV" value={fmtPct(iv.atm_iv)} />
-        <Stat label="IV Rank" value={fmtPctOf100(iv.iv_rank)} />
-        <Stat label="IV %ile" value={fmtPctOf100(iv.iv_percentile)} />
-        <Stat
-          label="RV 20d"
+      <div className="py-1 border-b border-bb-divider">
+        <StatRow label="ATM IV" value={fmtPct(iv.atm_iv)} />
+        <StatRow label="IV Rank" value={fmtPctOf100(iv.iv_rank)} />
+        <StatRow label="IV %ile" value={fmtPctOf100(iv.iv_percentile)} />
+        <StatRow
+          label="RV 20D"
           value={iv.realized_vol_20d !== null ? fmtPct(iv.realized_vol_20d) : "—"}
         />
-        <Stat
+        <StatRow
           label="25Δ Skew"
           value={iv.skew_25d !== null ? fmtPct(iv.skew_25d) : "—"}
           accent={
-            iv.skew_25d !== null && iv.skew_25d > 0.04
-              ? "text-orange-300"
-              : "text-zinc-200"
+            iv.skew_25d !== null && iv.skew_25d > 0.04 ? "text-bb-orange" : undefined
           }
         />
-        <Stat label="State" value={iv.state} />
       </div>
 
-      <div className="h-32">
-        <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={data} margin={{ top: 5, right: 10, bottom: 5, left: 0 }}>
-            <CartesianGrid stroke="#27272a" strokeDasharray="3 3" />
-            <XAxis dataKey="tenor" stroke="#71717a" fontSize={10} />
-            <YAxis
-              stroke="#71717a"
-              fontSize={10}
-              tickFormatter={(v) => `${v.toFixed(0)}%`}
-            />
-            <Tooltip
-              contentStyle={{
-                backgroundColor: "#111114",
-                border: "1px solid #27272a",
-                fontSize: 11,
-              }}
-              formatter={(v: number) => `${v.toFixed(2)}%`}
-            />
-            <Line
-              type="monotone"
-              dataKey="iv"
-              stroke="#22d3ee"
-              strokeWidth={2}
-              dot={{ r: 3, fill: "#22d3ee" }}
-            />
-          </LineChart>
-        </ResponsiveContainer>
-      </div>
+      {/* Term structure sparkline */}
+      {data.length > 0 && (
+        <div className="h-24 px-1 pt-1">
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={data} margin={{ top: 2, right: 8, bottom: 2, left: 0 }}>
+              <CartesianGrid stroke="#1a1a1a" strokeDasharray="2 2" />
+              <XAxis dataKey="tenor" stroke="#444" fontSize={9} tick={{ fill: "#666" }} />
+              <YAxis
+                stroke="#444"
+                fontSize={9}
+                tick={{ fill: "#666" }}
+                tickFormatter={(v) => `${(v as number).toFixed(0)}%`}
+                width={28}
+              />
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: "#0b0b0b",
+                  border: "1px solid #1e1e1e",
+                  fontSize: 10,
+                  fontFamily: "monospace",
+                }}
+                formatter={(v: number) => [`${v.toFixed(2)}%`, "IV"]}
+              />
+              <Line
+                type="monotone"
+                dataKey="iv"
+                stroke="#ff8c00"
+                strokeWidth={1.5}
+                dot={{ r: 2, fill: "#ff8c00", strokeWidth: 0 }}
+                activeDot={{ r: 3 }}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      )}
     </div>
   );
 }
 
-function Stat({
+function StatRow({
   label,
   value,
   accent,
@@ -110,9 +113,9 @@ function Stat({
   accent?: string;
 }) {
   return (
-    <div className="flex items-baseline justify-between">
-      <span className="text-zinc-500">{label}</span>
-      <span className={`font-mono ${accent ?? "text-zinc-200"}`}>{value}</span>
+    <div className="stat-row">
+      <span className="stat-label">{label}</span>
+      <span className={`stat-value ${accent ?? ""}`}>{value}</span>
     </div>
   );
 }

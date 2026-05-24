@@ -1,4 +1,3 @@
-import clsx from "clsx";
 import type { KeyLevel } from "../types";
 import { fmtPrice } from "../lib/format";
 
@@ -8,71 +7,59 @@ interface Props {
 }
 
 const KIND_COLOR: Record<string, string> = {
-  gamma_flip: "text-cyan-300",
-  call_wall: "text-emerald-400",
-  put_wall: "text-rose-400",
-  magnet: "text-zinc-300",
-  dealer_support: "text-emerald-300",
-  dealer_resistance: "text-rose-300",
+  gamma_flip:        "text-bb-cyan",
+  call_wall:         "text-bb-green",
+  put_wall:          "text-bb-red",
+  magnet:            "text-bb-muted",
+  dealer_support:    "text-bb-green",
+  dealer_resistance: "text-bb-red",
 };
 
 export function KeyLevelsPanel({ levels, spot }: Props) {
   const sorted = [...levels].sort((a, b) => b.price - a.price);
+
   return (
     <div className="panel h-full flex flex-col">
-      <div className="panel-title">
+      <div className="panel-hdr">
         <span>Key Levels</span>
-        <span className="text-zinc-500 normal-case">{sorted.length}</span>
+        <span className="text-bb-muted normal-case font-normal">{sorted.length} levels</span>
       </div>
+
       <div className="flex-1 overflow-y-auto">
-        <table className="w-full text-[11px] font-mono">
-          <thead className="text-zinc-500 text-left">
+        <table className="bb-table">
+          <thead>
             <tr>
-              <th className="py-1 font-normal">Price</th>
-              <th className="py-1 font-normal">Δ%</th>
-              <th className="py-1 font-normal">Type</th>
-              <th className="py-1 font-normal">Note</th>
+              <th>Price</th>
+              <th>Δ%</th>
+              <th>Type</th>
             </tr>
           </thead>
           <tbody>
-            {sorted.map((lv) => {
-              const dist = ((lv.price - spot) / spot) * 100;
-              return (
-                <tr
-                  key={`${lv.kind}-${lv.price}`}
-                  className="border-t border-terminal-border hover:bg-zinc-900/40"
-                >
-                  <td className="py-1 font-semibold">{fmtPrice(lv.price)}</td>
-                  <td
-                    className={clsx(
-                      "py-1",
-                      dist > 0 ? "text-emerald-400" : "text-rose-400"
-                    )}
-                  >
-                    {dist > 0 ? "+" : ""}
-                    {dist.toFixed(2)}%
-                  </td>
-                  <td
-                    className={clsx(
-                      "py-1 font-semibold",
-                      KIND_COLOR[lv.kind] ?? "text-zinc-300"
-                    )}
-                  >
-                    {lv.label}
-                  </td>
-                  <td className="py-1 text-zinc-500 truncate max-w-[180px]">
-                    {lv.note ?? ""}
-                  </td>
-                </tr>
-              );
-            })}
             {sorted.length === 0 && (
               <tr>
-                <td colSpan={4} className="py-3 text-center text-zinc-500">
+                <td colSpan={3} className="text-center text-bb-muted py-6">
                   No levels yet…
                 </td>
               </tr>
             )}
+            {sorted.map((lv) => {
+              const dist = ((lv.price - spot) / spot) * 100;
+              const isAbove = dist > 0;
+              return (
+                <tr key={`${lv.kind}-${lv.price}`}>
+                  <td className="font-mono font-bold text-bb-text">
+                    {fmtPrice(lv.price)}
+                  </td>
+                  <td className={`font-mono ${isAbove ? "text-bb-green" : "text-bb-red"}`}>
+                    {isAbove ? "+" : ""}
+                    {dist.toFixed(2)}%
+                  </td>
+                  <td className={`font-bold ${KIND_COLOR[lv.kind] ?? "text-bb-muted"}`}>
+                    {lv.label}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>

@@ -8,9 +8,9 @@ export function fmtBig(v: number | null | undefined): string {
   const abs = Math.abs(v);
   const sign = v < 0 ? "-" : "";
   if (abs >= 1e12) return `${sign}${(abs / 1e12).toFixed(2)}T`;
-  if (abs >= 1e9) return `${sign}${(abs / 1e9).toFixed(2)}B`;
-  if (abs >= 1e6) return `${sign}${(abs / 1e6).toFixed(2)}M`;
-  if (abs >= 1e3) return `${sign}${(abs / 1e3).toFixed(2)}K`;
+  if (abs >= 1e9)  return `${sign}${(abs / 1e9).toFixed(2)}B`;
+  if (abs >= 1e6)  return `${sign}${(abs / 1e6).toFixed(2)}M`;
+  if (abs >= 1e3)  return `${sign}${(abs / 1e3).toFixed(2)}K`;
   return `${sign}${abs.toFixed(2)}`;
 }
 
@@ -25,16 +25,17 @@ export function fmtPctOf100(v: number | null | undefined, dp = 0): string {
 }
 
 export function regimeColor(regime: string | undefined): string {
-  if (!regime) return "text-zinc-400";
-  if (regime.toLowerCase().includes("strong bullish")) return "text-emerald-400";
-  if (regime.toLowerCase().includes("bullish")) return "text-green-400";
-  if (regime.toLowerCase().includes("strong bearish")) return "text-rose-500";
-  if (regime.toLowerCase().includes("bearish")) return "text-red-400";
-  if (regime.toLowerCase().includes("expansion")) return "text-orange-300";
-  if (regime.toLowerCase().includes("compression")) return "text-cyan-300";
-  if (regime.toLowerCase().includes("long gamma")) return "text-cyan-300";
-  if (regime.toLowerCase().includes("short gamma")) return "text-orange-300";
-  return "text-zinc-300";
+  if (!regime) return "text-bb-muted";
+  const r = regime.toLowerCase();
+  if (r.includes("strong bullish")) return "text-bb-green";
+  if (r.includes("bullish"))        return "text-[#66e090]";
+  if (r.includes("strong bearish")) return "text-bb-red";
+  if (r.includes("bearish"))        return "text-[#ff7777]";
+  if (r.includes("expansion"))      return "text-bb-orange";
+  if (r.includes("compression"))    return "text-bb-cyan";
+  if (r.includes("long gamma"))     return "text-bb-cyan";
+  if (r.includes("short gamma"))    return "text-bb-orange";
+  return "text-bb-text";
 }
 
 export function biasColor(bias: string | undefined): string {
@@ -42,7 +43,7 @@ export function biasColor(bias: string | undefined): string {
 }
 
 export function sideColor(side: string | undefined): string {
-  if (side === "bullish") return "text-terminal-bull";
-  if (side === "bearish") return "text-terminal-bear";
-  return "text-terminal-neutral";
+  if (side === "bullish") return "text-bb-green";
+  if (side === "bearish") return "text-bb-red";
+  return "text-bb-muted";
 }

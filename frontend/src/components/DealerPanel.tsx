@@ -6,45 +6,55 @@ interface Props {
 }
 
 export function DealerPanel({ gex }: Props) {
+  const stateColor =
+    gex?.dealer_state === "long_gamma"
+      ? "text-bb-cyan"
+      : gex?.dealer_state === "short_gamma"
+      ? "text-bb-orange"
+      : "text-bb-muted";
+
   return (
     <div className="panel">
-      <div className="panel-title">
+      <div className="panel-hdr">
         <span>Dealer Positioning</span>
-        <span
-          className={
-            gex?.dealer_state === "long_gamma"
-              ? "text-cyan-300 normal-case"
-              : gex?.dealer_state === "short_gamma"
-              ? "text-orange-300 normal-case"
-              : "text-zinc-500 normal-case"
-          }
-        >
-          {gex ? gex.dealer_state.replace("_", " ") : "—"}
+        <span className={`normal-case font-mono font-normal ${stateColor}`}>
+          {gex ? gex.dealer_state.replace("_", " ").toUpperCase() : "—"}
         </span>
       </div>
+
       {!gex ? (
-        <div className="text-zinc-500 text-sm">No data yet…</div>
+        <div className="px-2 py-3 text-bb-muted text-xs">No data yet…</div>
       ) : (
-        <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs">
-          <Row label="Net GEX" value={fmtBig(gex.total_gex)} />
-          <Row label="Net DEX" value={fmtBig(gex.total_dex)} />
-          <Row label="Net Vega Exp" value={fmtBig(gex.total_vex)} />
-          <Row label="Net Vanna" value={fmtBig(gex.total_vanna)} />
-          <Row label="Net Charm/day" value={fmtBig(gex.total_charm)} />
-          <Row label="Gamma Flip" value={fmtPrice(gex.gamma_flip)} />
-          <Row label="Call Wall" value={fmtPrice(gex.largest_call_wall)} />
-          <Row label="Put Wall" value={fmtPrice(gex.largest_put_wall)} />
+        <div className="py-1">
+          <StatRow label="Net GEX" value={fmtBig(gex.total_gex)} />
+          <StatRow label="Net DEX" value={fmtBig(gex.total_dex)} />
+          <StatRow label="Net Vega Exp" value={fmtBig(gex.total_vex)} />
+          <StatRow label="Net Vanna" value={fmtBig(gex.total_vanna)} />
+          <StatRow label="Net Charm/Day" value={fmtBig(gex.total_charm)} />
+          <div className="border-t border-bb-divider mt-1 pt-1">
+            <StatRow label="Gamma Flip" value={fmtPrice(gex.gamma_flip)} accent="text-bb-cyan" />
+            <StatRow label="Call Wall" value={fmtPrice(gex.largest_call_wall)} accent="text-bb-green" />
+            <StatRow label="Put Wall" value={fmtPrice(gex.largest_put_wall)} accent="text-bb-red" />
+          </div>
         </div>
       )}
     </div>
   );
 }
 
-function Row({ label, value }: { label: string; value: string }) {
+function StatRow({
+  label,
+  value,
+  accent,
+}: {
+  label: string;
+  value: string;
+  accent?: string;
+}) {
   return (
-    <>
-      <span className="text-zinc-500">{label}</span>
-      <span className="font-mono text-zinc-200 text-right">{value}</span>
-    </>
+    <div className="stat-row">
+      <span className="stat-label">{label}</span>
+      <span className={`stat-value ${accent ?? ""}`}>{value}</span>
+    </div>
   );
 }

@@ -1,22 +1,20 @@
 export function DarkPoolPanel() {
   return (
     <div className="panel">
-      <div className="panel-title">
+      <div className="panel-hdr">
         <span>Dark Pool</span>
-        <span className="text-zinc-500 normal-case">paid feed required</span>
+        <span className="text-bb-muted normal-case font-normal">paid feed req'd</span>
       </div>
-      <div className="text-xs text-zinc-400 space-y-2">
+      <div className="px-2 py-2 text-[10px] text-bb-muted space-y-2">
         <p>
-          FINRA ADF/TRF prints are not available on the free data tier. Plug a
-          provider (Unusual Whales, dxFeed, or your own FINRA feed) into the{" "}
-          <code className="text-terminal-accent">DataAdapter</code> interface
-          and dark-pool sweeps + institutional zones will appear here without
-          touching the rest of the system.
+          FINRA ADF/TRF prints unavailable on free tier. Plug a provider
+          (Unusual Whales, dxFeed) into the{" "}
+          <code className="text-bb-amber">DataAdapter</code> interface to unlock:
         </p>
-        <ul className="text-[11px] text-zinc-500 list-disc pl-5">
-          <li>Large off-exchange prints with venue ID</li>
-          <li>Cumulative accumulation/distribution by symbol</li>
-          <li>High-volume node clusters from VWAP-shifted prints</li>
+        <ul className="space-y-1 text-[9px] text-bb-dim pl-2">
+          <li className="flex gap-2"><span className="text-bb-amber">›</span> Large off-exchange prints with venue ID</li>
+          <li className="flex gap-2"><span className="text-bb-amber">›</span> Cumulative accumulation / distribution</li>
+          <li className="flex gap-2"><span className="text-bb-amber">›</span> High-volume VWAP-shifted node clusters</li>
         </ul>
       </div>
     </div>

@@ -2,30 +2,92 @@
 @tailwind components;
 @tailwind utilities;
 
+@import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap");
+
 @layer base {
-  html, body, #root {
+  html,
+  body,
+  #root {
     height: 100%;
-    font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+    font-family: "JetBrains Mono", "Fira Code", Consolas, ui-monospace,
+      SFMono-Regular, monospace;
+    background: #000000;
+    color: #e0e0e0;
+  }
+
+  * {
+    border-radius: 0 !important;
+    box-sizing: border-box;
+  }
+
+  ::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+  ::-webkit-scrollbar-track {
+    background: #000;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #2a2a2a;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #3a3a3a;
   }
 }
 
 @layer components {
+  /* Panel container */
   .panel {
-    @apply rounded-lg border border-terminal-border bg-terminal-panel p-3 shadow-sm;
+    @apply border border-bb-border bg-bb-panel flex flex-col;
   }
-  .panel-title {
-    @apply text-[11px] font-semibold uppercase tracking-widest text-zinc-400 mb-2 flex items-center justify-between;
+
+  /* Panel header bar — amber Bloomberg-style */
+  .panel-hdr {
+    @apply text-[10px] font-bold tracking-[0.14em] uppercase text-bb-amber
+           border-b border-bb-border px-2 py-1 flex items-center justify-between
+           bg-bb-header shrink-0;
   }
-  .metric {
-    @apply flex items-baseline justify-between text-sm;
+
+  /* Tight stat row: label left, value right */
+  .stat-row {
+    @apply flex items-baseline justify-between px-2 py-[3px] text-xs;
   }
-  .metric-label {
-    @apply text-zinc-500;
+  .stat-label {
+    @apply text-bb-muted;
   }
-  .metric-value {
-    @apply font-mono tabular-nums;
+  .stat-value {
+    @apply font-mono text-bb-text tabular-nums;
   }
-  .pill {
-    @apply px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wider;
+
+  /* Table inside panel */
+  .bb-table {
+    @apply w-full text-[11px] font-mono;
+  }
+  .bb-table thead th {
+    @apply text-bb-muted text-left font-normal px-2 py-1 bg-bb-header
+           border-b border-bb-border sticky top-0;
+  }
+  .bb-table tbody tr {
+    @apply border-b border-bb-divider hover:bg-[#111111] transition-colors;
+  }
+  .bb-table tbody td {
+    @apply px-2 py-[3px];
+  }
+
+  /* Event type badges */
+  .badge {
+    @apply px-1.5 py-0 text-[9px] font-bold uppercase tracking-wider border inline-block;
+  }
+
+  /* Sidebar nav item */
+  .nav-item {
+    @apply w-full text-[10px] font-bold tracking-widest uppercase py-3 text-center
+           border-b border-bb-border transition-colors cursor-pointer;
+  }
+  .nav-item.active {
+    @apply text-bb-amber bg-[#111111] border-l-2 border-l-bb-amber;
+  }
+  .nav-item:not(.active) {
+    @apply text-bb-muted hover:text-bb-text hover:bg-[#0d0d0d];
   }
 }

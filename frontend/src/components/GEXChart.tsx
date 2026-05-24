@@ -19,14 +19,13 @@ interface Props {
 export function GEXChart({ profile }: Props) {
   if (!profile) {
     return (
-      <div className="panel">
-        <div className="panel-title">Gamma Exposure</div>
-        <div className="text-zinc-500 text-sm">No data yet…</div>
+      <div className="panel h-full">
+        <div className="panel-hdr">Gamma Exposure</div>
+        <div className="px-2 py-3 text-bb-muted text-xs">No data yet…</div>
       </div>
     );
   }
 
-  // Restrict to strikes within ±10% of spot for readability
   const spot = profile.underlying_price;
   const minK = spot * 0.9;
   const maxK = spot * 1.1;
@@ -35,94 +34,97 @@ export function GEXChart({ profile }: Props) {
     .map((l) => ({
       strike: l.strike,
       net: l.net_gex,
-      call: l.call_gex,
-      put: l.put_gex,
+      label: l.strike.toFixed(0),
     }));
+
+  const nearestStrike = data.reduce(
+    (best, d) =>
+      Math.abs(d.strike - spot) < Math.abs(best.strike - spot) ? d : best,
+    data[0],
+  )?.strike;
+
+  const stateColor =
+    profile.dealer_state === "long_gamma"
+      ? "#22d3ee"
+      : profile.dealer_state === "short_gamma"
+      ? "#ff6600"
+      : "#666666";
 
   return (
     <div className="panel h-full flex flex-col">
-      <div className="panel-title">
+      <div className="panel-hdr">
         <span>
           Gamma Exposure · {profile.underlying}{" "}
-          <span
-            className={
-              profile.dealer_state === "long_gamma"
-                ? "text-cyan-300"
-                : profile.dealer_state === "short_gamma"
-                ? "text-orange-300"
-                : "text-zinc-400"
-            }
-          >
-            {profile.dealer_state.replace("_", " ")}
+          <span style={{ color: stateColor }}>
+            [{profile.dealer_state.replace("_", " ").toUpperCase()}]
           </span>
         </span>
-        <span className="text-zinc-500 normal-case">
+        <span className="text-bb-muted normal-case font-normal font-mono">
           total {fmtBig(profile.total_gex)}
         </span>
       </div>
 
-      <div className="grid grid-cols-3 gap-2 text-[11px] mb-2">
-        <Stat label="Gamma Flip" value={fmtPrice(profile.gamma_flip)} />
-        <Stat
-          label="Call Wall"
-          value={fmtPrice(profile.largest_call_wall)}
-          accent="text-emerald-400"
-        />
-        <Stat
-          label="Put Wall"
-          value={fmtPrice(profile.largest_put_wall)}
-          accent="text-rose-400"
-        />
+      {/* Key levels row */}
+      <div className="grid grid-cols-3 border-b border-bb-border text-[10px]">
+        <LevelCell label="GAMMA FLIP" value={fmtPrice(profile.gamma_flip)} color="#22d3ee" />
+        <LevelCell label="CALL WALL" value={fmtPrice(profile.largest_call_wall)} color="#00d04a" border />
+        <LevelCell label="PUT WALL" value={fmtPrice(profile.largest_put_wall)} color="#ff3333" border />
       </div>
 
-      <div className="flex-1 min-h-[260px]">
+      {/* Chart */}
+      <div className="flex-1 min-h-[200px] p-1">
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={data} layout="vertical" margin={{ left: 0, right: 8 }}>
-            <CartesianGrid stroke="#27272a" strokeDasharray="3 3" />
+          <BarChart data={data} layout="vertical" margin={{ left: 4, right: 12, top: 4, bottom: 4 }}>
+            <CartesianGrid stroke="#141414" strokeDasharray="2 2" horizontal={false} />
             <XAxis
               type="number"
-              stroke="#71717a"
-              fontSize={10}
+              stroke="#333"
+              fontSize={9}
+              tick={{ fill: "#555" }}
               tickFormatter={(v) => fmtBig(v as number)}
+              axisLine={false}
             />
             <YAxis
               type="category"
-              dataKey="strike"
-              stroke="#71717a"
-              fontSize={10}
-              width={50}
-              tickFormatter={(v) => (v as number).toFixed(0)}
+              dataKey="label"
+              stroke="#333"
+              fontSize={9}
+              tick={{ fill: "#555" }}
+              width={44}
+              axisLine={false}
               reversed
             />
             <Tooltip
               contentStyle={{
-                backgroundColor: "#111114",
-                border: "1px solid #27272a",
-                fontSize: 11,
-              }}
-              formatter={(v: number) => fmtBig(v)}
-              labelFormatter={(v) => `Strike ${v}`}
-            />
-            <ReferenceLine
-              y={
-                data.find(
-                  (d) => Math.abs(d.strike - spot) === Math.min(...data.map((d) => Math.abs(d.strike - spot)))
-                )?.strike
-              }
-              stroke="#22d3ee"
-              strokeDasharray="2 2"
-              label={{
-                value: `spot ${spot.toFixed(2)}`,
-                position: "right",
-                fill: "#22d3ee",
+                backgroundColor: "#0b0b0b",
+                border: "1px solid #1e1e1e",
                 fontSize: 10,
+                fontFamily: "monospace",
               }}
+              formatter={(v: number) => [fmtBig(v), "Net GEX"]}
+              labelFormatter={(v) => `Strike ${v}`}
+              cursor={{ fill: "#141414" }}
             />
-            <Bar dataKey="net">
+            {nearestStrike && (
+              <ReferenceLine
+                y={nearestStrike.toFixed(0)}
+                stroke="#ff8c00"
+                strokeDasharray="3 2"
+                strokeWidth={1}
+                label={{
+                  value: `spot ${spot.toFixed(1)}`,
+                  position: "right",
+                  fill: "#ff8c00",
+                  fontSize: 9,
+                }}
+              />
+            )}
+            <Bar dataKey="net" isAnimationActive={false}>
               {data.map((row) => (
                 <Cell
                   key={row.strike}
-                  fill={row.net >= 0 ? "#22c55e" : "#ef4444"}
+                  fill={row.net >= 0 ? "#00d04a" : "#ff3333"}
+                  opacity={0.85}
                 />
               ))}
             </Bar>
@@ -133,21 +135,21 @@ export function GEXChart({ profile }: Props) {
   );
 }
 
-function Stat({
+function LevelCell({
   label,
   value,
-  accent,
+  color,
+  border,
 }: {
   label: string;
   value: string;
-  accent?: string;
+  color: string;
+  border?: boolean;
 }) {
   return (
-    <div className="rounded border border-terminal-border bg-zinc-900/60 px-2 py-1.5">
-      <div className="text-[10px] uppercase tracking-wider text-zinc-500">
-        {label}
-      </div>
-      <div className={`font-semibold ${accent ?? "text-zinc-200"}`}>
+    <div className={`px-2 py-1 ${border ? "border-l border-bb-border" : ""}`}>
+      <div className="text-[9px] tracking-widest text-bb-muted uppercase">{label}</div>
+      <div className="font-mono font-bold text-xs mt-0.5" style={{ color }}>
         {value}
       </div>
     </div>
