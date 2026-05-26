@@ -22,6 +22,7 @@ class Settings(BaseSettings):
 
     openai_api_key: str | None = Field(default=None)
     anthropic_api_key: str | None = Field(default=None)
+    fred_api_key: str | None = Field(default=None)
 
     symbols: str = Field(default="SPY,QQQ,SPX")
     futures_symbols: str = Field(default="ES=F,NQ=F")

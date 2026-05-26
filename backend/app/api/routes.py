@@ -5,7 +5,7 @@ import asyncio
 import json
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, WebSocket, WebSocketDisconnect
 
 from app.config import Settings, get_settings
 from app.state import StateStore, get_state
@@ -60,6 +60,35 @@ async def flow(symbol: str, limit: int = Query(100, ge=1, le=500)) -> list[dict]
     store = _store()
     events = store.get_flow(symbol.upper(), limit=limit)
     return [e.model_dump(mode="json") for e in events]
+
+
+@router.get("/history/{symbol}")
+async def gex_history(symbol: str) -> list[dict]:
+    """Intraday GEX history for a symbol (up to 8 hours, ~480 points at 60s cadence)."""
+    store = _store()
+    return store.get_gex_history(symbol.upper())
+
+
+@router.get("/macro")
+async def macro_data(request: Request, settings: Annotated[Settings, Depends(get_settings)]) -> dict:
+    """Macro indicators, Fed balance sheet (requires FRED_API_KEY), and news from RSS."""
+    from app.analytics.macro import get_macro_snapshot
+    adapter = request.app.state.adapter
+    return await get_macro_snapshot(adapter, fred_api_key=settings.fred_api_key)
+
+
+@router.get("/futures-prices")
+async def futures_prices(request: Request) -> dict:
+    """Live spot prices for ES=F and NQ=F — used by FOOTS strike translation."""
+    from app.adapters import DataAdapter
+    adapter: DataAdapter = request.app.state.adapter
+    result: dict[str, float | None] = {}
+    for sym in ("ES=F", "NQ=F"):
+        try:
+            result[sym] = await adapter.get_underlying_price(sym)
+        except Exception:
+            result[sym] = None
+    return result
 
 
 @router.websocket("/ws")

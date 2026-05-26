@@ -169,24 +169,32 @@ def build_gex_profile(chain: ChainSnapshot) -> GEXProfile:
 
 
 def _find_gamma_flip(levels: list[GEXLevel], spot: float) -> float | None:
-    """Return the strike at which cumulative net GEX flips sign nearest to spot."""
+    """Return the gamma flip level nearest to spot.
+
+    We look for zero crossings in the *individual* per-strike net_gex values
+    (not the cumulative sum).  This matches what SpotGamma-style charts display:
+    the flip is the strike where individual bars transition from negative to
+    positive (or vice versa), interpolated to the exact zero.
+
+    When multiple zero crossings exist we return the one closest to the current
+    spot price, giving the most actionable level for current hedging flows.
+    """
     if not levels:
         return None
-    strikes = np.array([lv.strike for lv in levels])
-    net = np.array([lv.net_gex for lv in levels])
-    cum = np.cumsum(net)
-    # Find sign changes
-    sign = np.sign(cum)
+    sorted_levels = sorted(levels, key=lambda lv: lv.strike)
+    strikes = np.array([lv.strike for lv in sorted_levels])
+    net = np.array([lv.net_gex for lv in sorted_levels])
+
+    sign = np.sign(net)
     flips: list[float] = []
     for i in range(1, len(sign)):
         if sign[i - 1] != 0 and sign[i] != 0 and sign[i - 1] != sign[i]:
-            # Linear-interpolate the crossing strike
             x0, x1 = strikes[i - 1], strikes[i]
-            y0, y1 = cum[i - 1], cum[i]
+            y0, y1 = net[i - 1], net[i]
             if y1 - y0 != 0:
-                flips.append(x0 - y0 * (x1 - x0) / (y1 - y0))
+                flips.append(float(x0 - y0 * (x1 - x0) / (y1 - y0)))
             else:
-                flips.append((x0 + x1) / 2)
+                flips.append(float((x0 + x1) / 2))
     if not flips:
         return None
     return float(min(flips, key=lambda p: abs(p - spot)))

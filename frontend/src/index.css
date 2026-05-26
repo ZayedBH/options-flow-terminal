@@ -11,7 +11,7 @@
     height: 100%;
     font-family: "JetBrains Mono", "Fira Code", Consolas, ui-monospace,
       SFMono-Regular, monospace;
-    background: #000000;
+    background: #020202;
     color: #e0e0e0;
   }
 
@@ -25,69 +25,138 @@
     height: 4px;
   }
   ::-webkit-scrollbar-track {
-    background: #000;
+    background: #020202;
   }
   ::-webkit-scrollbar-thumb {
-    background: #2a2a2a;
+    background: #222;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: #3a3a3a;
+    background: #333;
   }
 }
 
 @layer components {
-  /* Panel container */
+  /* ── Panel container ──────────────────────────────────────── */
   .panel {
-    @apply border border-bb-border bg-bb-panel flex flex-col;
+    display: flex;
+    flex-direction: column;
+    background: #080808;
+    border: 1px solid #181818;
   }
 
-  /* Panel header bar — amber Bloomberg-style */
+  /* ── Panel header — amber glow + gradient accent ──────────── */
   .panel-hdr {
-    @apply text-[10px] font-bold tracking-[0.14em] uppercase text-bb-amber
-           border-b border-bb-border px-2 py-1 flex items-center justify-between
-           bg-bb-header shrink-0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+    padding: 8px 12px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: #ff8c00;
+    text-shadow: 0 0 12px rgba(255, 140, 0, 0.45);
+    background: linear-gradient(90deg, rgba(255, 140, 0, 0.08) 0%, transparent 80%);
+    border-bottom: 1px solid rgba(255, 140, 0, 0.18);
+    border-left: 3px solid #ff8c00;
   }
 
-  /* Tight stat row: label left, value right */
+  /* ── Stat row ────────────────────────────────────────────── */
   .stat-row {
-    @apply flex items-baseline justify-between px-2 py-[3px] text-xs;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    padding: 4px 12px;
+    font-size: 11px;
+    border-bottom: 1px solid #0d0d0d;
   }
+
   .stat-label {
-    @apply text-bb-muted;
+    font-size: 9px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #4a4a4a;
   }
+
   .stat-value {
-    @apply font-mono text-bb-text tabular-nums;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: #cccccc;
   }
 
-  /* Table inside panel */
+  /* ── Table inside panel ──────────────────────────────────── */
   .bb-table {
-    @apply w-full text-[11px] font-mono;
+    width: 100%;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px;
   }
+
   .bb-table thead th {
-    @apply text-bb-muted text-left font-normal px-2 py-1 bg-bb-header
-           border-b border-bb-border sticky top-0;
+    position: sticky;
+    top: 0;
+    text-align: left;
+    font-weight: 400;
+    font-size: 8px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    padding: 6px 8px;
+    color: #383838;
+    background: #040404;
+    border-bottom: 1px solid #181818;
   }
+
   .bb-table tbody tr {
-    @apply border-b border-bb-divider hover:bg-[#111111] transition-colors;
+    border-bottom: 1px solid #0d0d0d;
+    transition: background 0.1s;
   }
+
+  .bb-table tbody tr:hover {
+    background: #0f0f0f;
+  }
+
   .bb-table tbody td {
-    @apply px-2 py-[3px];
+    padding: 4px 8px;
   }
 
-  /* Event type badges */
+  /* ── Event type badges ───────────────────────────────────── */
   .badge {
-    @apply px-1.5 py-0 text-[9px] font-bold uppercase tracking-wider border inline-block;
+    display: inline-block;
+    padding: 0 6px;
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    border: 1px solid;
   }
 
-  /* Sidebar nav item */
+  /* ── Sidebar nav item ────────────────────────────────────── */
   .nav-item {
-    @apply w-full text-[10px] font-bold tracking-widest uppercase py-3 text-center
-           border-b border-bb-border transition-colors cursor-pointer;
+    width: 100%;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    padding: 12px 0;
+    text-align: center;
+    border-bottom: 1px solid #141414;
+    cursor: pointer;
+    transition: color 0.15s, background 0.15s;
+    background: transparent;
+    color: #383838;
   }
+
   .nav-item.active {
-    @apply text-bb-amber bg-[#111111] border-l-2 border-l-bb-amber;
+    color: #ff8c00;
+    background: #0d0d0d;
+    border-left: 2px solid #ff8c00;
+    text-shadow: 0 0 10px rgba(255, 140, 0, 0.55);
   }
-  .nav-item:not(.active) {
-    @apply text-bb-muted hover:text-bb-text hover:bg-[#0d0d0d];
+
+  .nav-item:not(.active):hover {
+    color: #888;
+    background: #0a0a0a;
   }
 }

@@ -38,6 +38,20 @@ export function regimeColor(regime: string | undefined): string {
   return "text-bb-text";
 }
 
+export function regimeColorHex(regime: string | undefined): string {
+  if (!regime) return "#666666";
+  const r = regime.toLowerCase();
+  if (r.includes("strong bullish")) return "#00d04a";
+  if (r.includes("bullish"))        return "#66e090";
+  if (r.includes("strong bearish")) return "#ff3333";
+  if (r.includes("bearish"))        return "#ff7777";
+  if (r.includes("expansion"))      return "#ff6600";
+  if (r.includes("compression"))    return "#22d3ee";
+  if (r.includes("long gamma"))     return "#22d3ee";
+  if (r.includes("short gamma"))    return "#ff6600";
+  return "#e0e0e0";
+}
+
 export function biasColor(bias: string | undefined): string {
   return regimeColor(bias);
 }

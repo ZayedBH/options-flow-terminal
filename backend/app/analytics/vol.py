@@ -7,7 +7,7 @@ from statistics import median
 
 import numpy as np
 
-from app.schemas import ChainSnapshot, IVSummary, OptionType
+from app.schemas import ChainSnapshot, IVSummary, OptionType, SkewPoint
 
 
 def realized_vol(close_prices: list[float], window: int = 20) -> float | None:
@@ -163,6 +163,91 @@ def skew_25_delta(chain: ChainSnapshot) -> float | None:
     return put_iv - call_iv
 
 
+def skew_curve(
+    chain: ChainSnapshot,
+    *,
+    max_expiries: int = 4,
+    strike_band: float = 0.12,
+) -> dict[str, list[SkewPoint]]:
+    """Build a full IV smile per expiry for the skew chart.
+
+    Returns a dict keyed by a human-readable expiry label (e.g. '0dte', '7d', '30d')
+    with each value being a list of SkewPoint sorted by strike ascending.
+
+    Args:
+        chain: Enriched chain snapshot.
+        max_expiries: How many nearest expiries to include (default 4).
+        strike_band: Only include strikes within ±strike_band% of spot (default ±12%).
+    """
+    if not chain.rows:
+        return {}
+
+    now = chain.timestamp.astimezone(UTC) if chain.timestamp.tzinfo else chain.timestamp
+    today = now.date()
+    spot = chain.underlying_price
+
+    # Group rows by expiration date
+    by_exp: dict[date, list] = {}
+    for row in chain.rows:
+        if row.contract.implied_volatility is None or row.contract.implied_volatility <= 0:
+            continue
+        by_exp.setdefault(row.contract.expiration, []).append(row)
+
+    if not by_exp:
+        return {}
+
+    # Pick closest expiries with data, skip expired
+    sorted_exps = sorted(
+        [e for e in by_exp if (e - today).days >= 0],
+        key=lambda e: (e - today).days,
+    )[:max_expiries]
+
+    result: dict[str, list[SkewPoint]] = {}
+    for exp in sorted_exps:
+        dte = (exp - today).days
+        if dte == 0:
+            label = "0dte"
+        elif dte <= 7:
+            label = f"{dte}d"
+        elif dte <= 35:
+            label = f"{round(dte / 7)}w"
+        elif dte <= 100:
+            label = f"{round(dte / 30)}m"
+        else:
+            label = f"{exp}"
+
+        rows = by_exp[exp]
+        call_ivs: dict[float, float] = {}
+        put_ivs: dict[float, float] = {}
+        for row in rows:
+            k = row.contract.strike
+            if abs(k - spot) / spot > strike_band:
+                continue
+            iv = row.contract.implied_volatility
+            if iv is None or iv <= 0:
+                continue
+            if row.contract.option_type == OptionType.CALL:
+                call_ivs[k] = iv
+            else:
+                put_ivs[k] = iv
+
+        # Merge all strikes seen for this expiry
+        all_strikes = sorted(set(call_ivs.keys()) | set(put_ivs.keys()))
+        if not all_strikes:
+            continue
+
+        points: list[SkewPoint] = []
+        for k in all_strikes:
+            points.append(SkewPoint(
+                strike=k,
+                call_iv=call_ivs.get(k),
+                put_iv=put_ivs.get(k),
+            ))
+        result[label] = points
+
+    return result
+
+
 def detect_vol_state(atm_iv: float | None, rv_20d: float | None, term: dict[str, float]) -> str:
     """Classify vol regime as expansion / compression / crush / normal."""
     if atm_iv is None:
@@ -191,6 +276,7 @@ def build_iv_summary(
     rank = iv_rank(atm, iv_history) if atm is not None and iv_history else None
     pct = iv_percentile(atm, iv_history) if atm is not None and iv_history else None
     state = detect_vol_state(atm, realized_vol_20d, ts)
+    skew_exp = skew_curve(chain)
     return IVSummary(
         underlying=chain.underlying,
         timestamp=chain.timestamp,
@@ -202,4 +288,5 @@ def build_iv_summary(
         skew_25d=sk,
         term_structure=ts,
         state=state,
+        skew_by_expiry=skew_exp,
     )

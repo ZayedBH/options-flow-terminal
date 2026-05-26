@@ -106,6 +106,14 @@ class GEXProfile(BaseModel):
     dealer_state: str = "unknown"  # 'long_gamma' | 'short_gamma' | 'neutral'
 
 
+class SkewPoint(BaseModel):
+    """A single strike's IV data for the skew curve."""
+
+    strike: float
+    call_iv: float | None = None
+    put_iv: float | None = None
+
+
 class IVSummary(BaseModel):
     """IV statistics for an underlying."""
 
@@ -119,6 +127,8 @@ class IVSummary(BaseModel):
     skew_25d: float | None = None  # 25-delta put IV - 25-delta call IV
     term_structure: dict[str, float] = Field(default_factory=dict)  # tenor_label -> atm_iv
     state: str = "normal"  # 'compression' | 'expansion' | 'crush' | 'normal'
+    # Full IV smile per expiry: expiry_label -> sorted list of (strike, call_iv, put_iv) points
+    skew_by_expiry: dict[str, list[SkewPoint]] = Field(default_factory=dict)
 
 
 class FlowEventType(str, Enum):
@@ -182,6 +192,62 @@ class RegimeClassification(BaseModel):
     mean_reversion_score: float  # 0..1
     trend_continuation_score: float  # 0..1
     notes: list[str] = Field(default_factory=list)
+    # Composite sub-scores (0..100 each, 50 = neutral)
+    dealer_pressure_score: float = 50.0   # >50 bullish dealer pressure, <50 bearish
+    vol_expansion_score: float = 30.0     # high = vol expanding/fear, low = compressed
+    flow_aggression_score: float = 50.0   # high = strong directional flow
+    # Exposure snapshot (copied from GEXProfile for UI convenience)
+    total_vanna: float = 0.0
+    total_charm: float = 0.0
+    total_dex: float = 0.0
+    total_vex: float = 0.0
+    # External signals used in classification
+    vvix: float | None = None
+
+
+class FlowMetrics(BaseModel):
+    """Aggregate put/call ratios and max-pain level from the full chain."""
+
+    pcr_oi: float | None = None       # put OI / call OI
+    pcr_vol: float | None = None      # put vol / call vol
+    total_call_oi: int = 0
+    total_put_oi: int = 0
+    total_call_vol: int = 0
+    total_put_vol: int = 0
+    max_pain: float | None = None     # strike minimizing total options value
+
+
+# ── Bias engine output models ─────────────────────────────────────────────────
+
+class BiasSubScore(BaseModel):
+    """A single signal's contribution to the directional bias."""
+
+    score: float       # −1.0 (bearish) … 0.0 (neutral) … +1.0 (bullish)
+    confidence: float  # 0.0 … 1.0
+    label: str         # human label: "Bullish", "Mild Bullish", "Neutral", …
+
+
+class BiasTimeframe(BaseModel):
+    """Bias output for a single DTE bucket / timeframe."""
+
+    bias: float        # −100 … +100  (tanh-squashed)
+    confidence: float  # 0.0 … 1.0
+    label: str         # regime label from 9-label system
+    gate: str | None = None          # "vol_expansion" | "pinned" | None
+    contract_count: int = 0
+    sub_scores: dict[str, BiasSubScore] = Field(default_factory=dict)
+
+
+class BiasOutput(BaseModel):
+    """Four-timeframe conditional bias from the options chain."""
+
+    intraday: BiasTimeframe
+    daily: BiasTimeframe
+    weekly: BiasTimeframe
+    monthly: BiasTimeframe
+    gamma_regime: float   # −1.0 (max short gamma) … +1.0 (max long gamma)
+    dealer_state: str     # "long_gamma" | "short_gamma" | "neutral"
+    timestamp: datetime
 
 
 class TerminalSnapshot(BaseModel):
@@ -192,7 +258,11 @@ class TerminalSnapshot(BaseModel):
     timestamp: datetime
     regime: RegimeClassification | None = None
     gex: GEXProfile | None = None
+    gex_0dte: GEXProfile | None = None
+    gex_1dte: GEXProfile | None = None
     iv: IVSummary | None = None
     key_levels: list[KeyLevel] = Field(default_factory=list)
     recent_flow: list[FlowEvent] = Field(default_factory=list)
     commentary: str | None = None
+    flow_metrics: FlowMetrics | None = None
+    bias: BiasOutput | None = None

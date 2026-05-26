@@ -1,0 +1,39 @@
+## Summary
+
+- **Complete frontend redesign** to Bloomberg terminal aesthetic: near-black `#000` background, amber `#ff8c00` panel titles, 1px hard borders, zero border-radius, JetBrains Mono throughout
+- **New layout shell**: left sidebar navigation (DASH / FLOW / VOL / LVL, F1–F4 keyboard shortcuts), top bar with live clock + connection status, bottom status bar
+- **Three new views** beyond the original dashboard: full-screen Flow Tape with side/type filters, IV Term Structure chart view, Key Levels price ladder with strength bars
+- **Backend bug fixes**: removed 5 dead dependencies (redis, sqlalchemy, asyncpg, psycopg2-binary, alembic), stripped unused postgres/redis config, fixed `defaultdict` bug in `exposure.py`, added Anthropic Claude Haiku support to commentary (priority: Claude → OpenAI → deterministic template)
+
+## What changed
+
+### Backend (`backend/`)
+- `pyproject.toml` — removed dead deps that were never imported
+- `app/config.py` — removed postgres/redis fields and URL properties
+- `app/analytics/exposure.py` — `defaultdict(lambda: GEXLevel(strike=0.0))` replaced with plain `dict`; unused import removed
+- `app/ai/commentary.py` — added Anthropic Claude API as primary LLM before OpenAI fallback; fixed inline conditional bug in template path
+
+### Frontend (`frontend/`)
+- `tailwind.config.js` — new `bb-*` color namespace (Bloomberg palette)
+- `src/index.css` — Bloomberg base styles: `border-radius: 0`, `.panel`, `.panel-hdr`, `.bb-table`, `.nav-item`, `.badge`
+- `src/App.tsx` — full terminal shell with sidebar + view routing + F1-F4 shortcuts
+- `src/components/TopBar.tsx` — new (replaces `Header.tsx`); live clock, amber brand, symbol tabs
+- `src/components/Sidebar.tsx` — new; nav with active amber highlight
+- `src/components/StatusBar.tsx` — new; bottom status bar
+- `src/views/DashboardView.tsx` — new; 3-column layout
+- `src/views/FlowView.tsx` — new; full-screen flow tape
+- `src/views/VolView.tsx` — new; IV term structure chart + stats sidebar
+- `src/views/LevelsView.tsx` — new; price ladder + GEX summary + legend
+- All existing panels redesigned in Bloomberg style
+
+## Test plan
+
+- [x] TypeScript typechecks pass (`npm run typecheck` — zero errors)
+- [x] Backend starts cleanly with Python 3.13
+- [x] Frontend starts cleanly on Vite
+- [x] Tested live against yfinance — SPY/QQQ/SPX regime, GEX, IV, flow tape all render with real data
+- [x] Verified 2+ full poll cycles (60s) with zero backend errors
+- [x] F1-F4 keyboard shortcuts switch views
+- [x] Flow tape side/type filters work correctly
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)

@@ -47,6 +47,12 @@ export interface GEXProfile {
   dealer_state: string;
 }
 
+export interface SkewPoint {
+  strike: number;
+  call_iv: number | null;
+  put_iv: number | null;
+}
+
 export interface IVSummary {
   underlying: string;
   timestamp: string;
@@ -58,6 +64,14 @@ export interface IVSummary {
   skew_25d: number | null;
   term_structure: Record<string, number>;
   state: string;
+  skew_by_expiry: Record<string, SkewPoint[]>;
+}
+
+export interface GEXHistoryPoint {
+  ts: string;
+  total_gex: number;
+  gamma_flip: number | null;
+  dealer_state: string;
 }
 
 export interface KeyLevel {
@@ -84,6 +98,54 @@ export interface RegimeClassification {
   mean_reversion_score: number;
   trend_continuation_score: number;
   notes: string[];
+  // Sub-scores (0-100)
+  dealer_pressure_score: number;
+  vol_expansion_score: number;
+  flow_aggression_score: number;
+  // Exposure snapshot
+  total_vanna: number;
+  total_charm: number;
+  total_dex: number;
+  total_vex: number;
+  // External signals
+  vvix: number | null;
+}
+
+export interface FlowMetrics {
+  pcr_oi: number | null;
+  pcr_vol: number | null;
+  total_call_oi: number;
+  total_put_oi: number;
+  total_call_vol: number;
+  total_put_vol: number;
+  max_pain: number | null;
+}
+
+// ── Bias engine types ─────────────────────────────────────────────────────────
+
+export interface BiasSubScore {
+  score: number;       // −1.0 … +1.0
+  confidence: number;  // 0.0 … 1.0
+  label: string;       // "Bullish" | "Mild Bullish" | "Neutral" | "Mild Bearish" | "Bearish"
+}
+
+export interface BiasTimeframe {
+  bias: number;        // −100 … +100
+  confidence: number;  // 0.0 … 1.0
+  label: string;       // regime label
+  gate: string | null; // "vol_expansion" | "pinned" | null
+  contract_count: number;
+  sub_scores: Record<string, BiasSubScore>;
+}
+
+export interface BiasOutput {
+  intraday: BiasTimeframe;
+  daily: BiasTimeframe;
+  weekly: BiasTimeframe;
+  monthly: BiasTimeframe;
+  gamma_regime: number;  // −1.0 … +1.0
+  dealer_state: string;
+  timestamp: string;
 }
 
 export interface TerminalSnapshot {
@@ -92,8 +154,12 @@ export interface TerminalSnapshot {
   timestamp: string;
   regime: RegimeClassification | null;
   gex: GEXProfile | null;
+  gex_0dte: GEXProfile | null;
+  gex_1dte: GEXProfile | null;
   iv: IVSummary | null;
   key_levels: KeyLevel[];
   recent_flow: FlowEvent[];
   commentary: string | null;
+  flow_metrics: FlowMetrics | null;
+  bias: BiasOutput | null;
 }

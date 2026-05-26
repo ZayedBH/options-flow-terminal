@@ -15,19 +15,36 @@ from contextlib import asynccontextmanager
 from app.schemas import FlowEvent, TerminalSnapshot
 
 
+_GEX_HISTORY_MAXLEN = 480  # 8 hours @ 60-second polls
+
+
 class StateStore:
-    """Latest TerminalSnapshot per underlying + a sliding flow tape."""
+    """Latest TerminalSnapshot per underlying + a sliding flow tape + GEX history."""
 
     def __init__(self, flow_buffer_size: int = 200) -> None:
         self._snapshots: dict[str, TerminalSnapshot] = {}
         self._flow_tape: dict[str, deque[FlowEvent]] = {}
         self._flow_buffer_size = flow_buffer_size
+        # GEX history: symbol -> deque of {ts, total_gex, gamma_flip, dealer_state}
+        self._gex_history: dict[str, deque[dict]] = {}
         self._subscribers: set[asyncio.Queue] = set()
         self._lock = asyncio.Lock()
 
     async def update_snapshot(self, snapshot: TerminalSnapshot) -> None:
         async with self._lock:
             self._snapshots[snapshot.underlying] = snapshot
+            # Append to GEX history ring buffer
+            if snapshot.gex is not None:
+                buf = self._gex_history.setdefault(
+                    snapshot.underlying,
+                    deque(maxlen=_GEX_HISTORY_MAXLEN),
+                )
+                buf.append({
+                    "ts": snapshot.timestamp.isoformat(),
+                    "total_gex": snapshot.gex.total_gex,
+                    "gamma_flip": snapshot.gex.gamma_flip,
+                    "dealer_state": snapshot.gex.dealer_state,
+                })
         await self._broadcast({"type": "snapshot", "data": snapshot.model_dump(mode="json")})
 
     async def push_flow(self, events: list[FlowEvent]) -> None:
@@ -48,6 +65,13 @@ class StateStore:
 
     def list_snapshots(self) -> list[TerminalSnapshot]:
         return list(self._snapshots.values())
+
+    def get_gex_history(self, symbol: str) -> list[dict]:
+        """Return the intraday GEX history for a symbol, oldest-first."""
+        buf = self._gex_history.get(symbol)
+        if not buf:
+            return []
+        return list(buf)
 
     def get_flow(self, symbol: str, limit: int = 100) -> list[FlowEvent]:
         buf = self._flow_tape.get(symbol)

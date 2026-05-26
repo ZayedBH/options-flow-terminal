@@ -7,12 +7,14 @@ in addition to the periodic chain refresh.
 from __future__ import annotations
 
 import asyncio
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 
 from app.adapters import DataAdapter
 from app.ai.commentary import build_commentary
+from app.analytics.bias_engine import compute_bias
 from app.analytics.exposure import build_gex_profile, enrich_chain
 from app.analytics.flow import (
+    compute_flow_metrics,
     detect_flow_events,
     rank_unusual_strikes,
     summarize_flow_sentiment,
@@ -26,6 +28,21 @@ from app.schemas import ChainSnapshot, TerminalSnapshot
 from app.state import StateStore
 
 log = get_logger("poller")
+
+
+def _gex_for_expiry(chain: ChainSnapshot, expiry: date) -> "GEXProfile | None":
+    """Build a GEX profile restricted to a single expiration date."""
+    from app.schemas import GEXProfile
+    rows = [r for r in chain.rows if r.contract.expiration == expiry]
+    if not rows:
+        return None
+    filtered = ChainSnapshot(
+        underlying=chain.underlying,
+        underlying_price=chain.underlying_price,
+        timestamp=chain.timestamp,
+        rows=rows,
+    )
+    return build_gex_profile(filtered)
 
 
 class TerminalPoller:
@@ -104,32 +121,56 @@ class TerminalPoller:
             timestamp=raw_chain.timestamp,
             rows=enriched_rows,
         )
-        # Step 2: aggregate GEX/DEX/Vanna/Charm at the strike level
+        # Step 2: aggregate GEX/DEX/Vanna/Charm at the strike level (all + per-expiry)
         gex = build_gex_profile(chain)
+        sorted_expiries = sorted({r.contract.expiration for r in chain.rows})
+        gex_0dte = _gex_for_expiry(chain, sorted_expiries[0]) if len(sorted_expiries) >= 1 else None
+        gex_1dte = _gex_for_expiry(chain, sorted_expiries[1]) if len(sorted_expiries) >= 2 else None
         # Step 3: IV/skew/term-structure with historical context
         closes = await self.adapter.get_historical_close(symbol, days=60)
         rv = realized_vol(closes, window=20) if closes else None
         iv = build_iv_summary(chain, iv_history=None, realized_vol_20d=rv)
-        # Step 4: flow events + sentiment
+        # Step 4: flow events + sentiment + PCR + max pain
         flow_events = detect_flow_events(chain)
         flow_top = rank_unusual_strikes(flow_events, limit=20)
         flow_score = summarize_flow_sentiment(flow_events)
+        flow_metrics = compute_flow_metrics(chain)
         # Step 5: regime + key levels + commentary
         vix_price = None
+        vvix_price = None
         try:
-            vix_price = await self.adapter.get_underlying_price("VIX")
+            vix_price = await self.adapter.get_underlying_price("^VIX")
         except Exception:
-            vix_price = None
+            pass
+        try:
+            vvix_price = await self.adapter.get_underlying_price("^VVIX")
+        except Exception:
+            pass
         regime = classify(
             gex=gex,
             iv=iv,
             flow_events=flow_events,
             vix=vix_price,
+            vvix=vvix_price,
             flow_sentiment_score=flow_score,
+            flow_metrics=flow_metrics,
             now=raw_chain.timestamp,
         )
-        levels = key_levels_from_gex(gex)
+        levels = key_levels_from_gex(gex, max_pain=flow_metrics.max_pain)
         commentary = await build_commentary(regime, gex, iv, flow_top)
+
+        # Step 6: new conditional bias engine (4 timeframes)
+        bias = None
+        try:
+            bias = compute_bias(
+                chain=chain,
+                gex_profile=gex,
+                iv_summary=iv,
+                flow_metrics=flow_metrics,
+                now=raw_chain.timestamp,
+            )
+        except Exception as exc:
+            log.warning("bias engine failed", symbol=symbol, error=str(exc))
 
         return TerminalSnapshot(
             underlying=symbol,
@@ -137,8 +178,12 @@ class TerminalPoller:
             timestamp=datetime.now(UTC),
             regime=regime,
             gex=gex,
+            gex_0dte=gex_0dte,
+            gex_1dte=gex_1dte,
             iv=iv,
             key_levels=levels,
             recent_flow=flow_top,
             commentary=commentary,
+            flow_metrics=flow_metrics,
+            bias=bias,
         )

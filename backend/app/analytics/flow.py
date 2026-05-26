@@ -9,6 +9,12 @@ What we *can* do with delayed/free data is approximate "unusual options activity
 * compute notional premium (volume * mark * 100)
 * classify as bullish/bearish via option type and side
 
+Flow type sentiment weighting:
+  UNUSUAL  2.0×  — vol/OI explosion signals fresh directional conviction
+  SWEEP    1.5×  — market order aggression, strong directional intent
+  LARGE    1.0×  — baseline
+  BLOCK    0.8×  — could be a hedge, roll, or close; discounted
+
 When a real-time provider (Polygon, Unusual Whales, dxFeed) is wired in, the same
 `FlowEvent` schema is produced from trade-conditions tape, and the rest of the system
 keeps working unchanged.
@@ -17,15 +23,30 @@ from __future__ import annotations
 
 import uuid
 from collections.abc import Iterable
+from datetime import date
 
 from app.schemas import (
     ChainSnapshot,
     FlowEvent,
     FlowEventType,
+    FlowMetrics,
     FlowSide,
     OptionContract,
     OptionType,
 )
+
+# ─── Type-based sentiment multipliers ────────────────────────────────────────
+# Sweeps are aggressive market orders → highest weight
+# Unusual = vol/OI explosion → fresh directional positioning → very high weight
+# Large = notable but ambiguous direction → baseline
+# Block = could be a hedge, roll, or close → discounted
+
+_TYPE_WEIGHT: dict[FlowEventType, float] = {
+    FlowEventType.UNUSUAL: 2.0,
+    FlowEventType.SWEEP:   1.5,
+    FlowEventType.LARGE:   1.0,
+    FlowEventType.BLOCK:   0.8,
+}
 
 
 def _infer_side(contract: OptionContract) -> FlowSide:
@@ -118,13 +139,95 @@ def rank_unusual_strikes(events: Iterable[FlowEvent], limit: int = 10) -> list[F
 
 
 def summarize_flow_sentiment(events: list[FlowEvent]) -> float:
-    """Return a -100..100 score from bullish vs bearish notional."""
+    """Return a -100..100 score from bullish vs bearish weighted notional.
+
+    Weighting:
+      UNUSUAL 2.0× — vol/OI explosion, fresh directional conviction
+      SWEEP   1.5× — market-order aggression
+      LARGE   1.0× — baseline
+      BLOCK   0.8× — hedges/rolls discounted
+    """
     if not events:
         return 0.0
-    bull = sum(e.premium for e in events if e.side == FlowSide.BULLISH)
-    bear = sum(e.premium for e in events if e.side == FlowSide.BEARISH)
+    bull = 0.0
+    bear = 0.0
+    for e in events:
+        weight = _TYPE_WEIGHT.get(e.event_type, 1.0)
+        weighted_premium = e.premium * weight
+        if e.side == FlowSide.BULLISH:
+            bull += weighted_premium
+        elif e.side == FlowSide.BEARISH:
+            bear += weighted_premium
     total = bull + bear
     if total <= 0:
         return 0.0
-    score = (bull - bear) / total * 100.0
-    return float(max(-100.0, min(100.0, score)))
+    return float(max(-100.0, min(100.0, (bull - bear) / total * 100.0)))
+
+
+def zero_dte_premium_ratio(events: list[FlowEvent], today: date) -> float:
+    """Fraction of total flow premium expiring today (0DTE).  Returns 0..1.
+
+    High ratio (>0.4) = flow dominated by gamma-driven intraday speculation.
+    Very high (>0.6) = explosive/binary intraday conditions likely.
+    """
+    if not events:
+        return 0.0
+    total = sum(e.premium for e in events)
+    if total <= 0:
+        return 0.0
+    dte0 = sum(e.premium for e in events if e.expiration == today)
+    return dte0 / total
+
+
+def _max_pain(by_strike: dict[float, tuple[int, int]]) -> float | None:
+    """Strike that minimizes total intrinsic value of all outstanding options (max pain).
+
+    by_strike: {strike -> (call_oi, put_oi)}
+    """
+    strikes = sorted(by_strike.keys())
+    if not strikes:
+        return None
+    min_pain = float("inf")
+    result = strikes[0]
+    for target in strikes:
+        pain = 0.0
+        for k, (call_oi, put_oi) in by_strike.items():
+            if target > k:          # calls are ITM at this target
+                pain += (target - k) * call_oi
+            elif target < k:        # puts are ITM at this target
+                pain += (k - target) * put_oi
+        if pain < min_pain:
+            min_pain = pain
+            result = target
+    return float(result)
+
+
+def compute_flow_metrics(chain: ChainSnapshot) -> FlowMetrics:
+    """PCR (OI + vol) and max-pain level from the full options chain."""
+    call_oi = call_vol = put_oi = put_vol = 0
+    by_strike: dict[float, tuple[int, int]] = {}   # {strike: (call_oi, put_oi)}
+
+    for row in chain.rows:
+        c = row.contract
+        oi = max(0, c.open_interest)
+        vol = max(0, c.volume)
+        k = c.strike
+        cur_c, cur_p = by_strike.get(k, (0, 0))
+        if c.option_type == OptionType.CALL:
+            call_oi += oi
+            call_vol += vol
+            by_strike[k] = (cur_c + oi, cur_p)
+        else:
+            put_oi += oi
+            put_vol += vol
+            by_strike[k] = (cur_c, cur_p + oi)
+
+    return FlowMetrics(
+        pcr_oi=round(put_oi / call_oi, 3) if call_oi > 0 else None,
+        pcr_vol=round(put_vol / call_vol, 3) if call_vol > 0 else None,
+        total_call_oi=call_oi,
+        total_put_oi=put_oi,
+        total_call_vol=call_vol,
+        total_put_vol=put_vol,
+        max_pain=_max_pain(by_strike),
+    )

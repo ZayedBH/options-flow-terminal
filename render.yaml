@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: oft-backend
+    runtime: python
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    plan: free
+    envVars:
+      - key: DATA_PROVIDER
+        value: yfinance
+      - key: SYMBOLS
+        value: SPY,QQQ
+      - key: FUTURES_SYMBOLS
+        value: ES=F,NQ=F
+      - key: CHAIN_POLL_INTERVAL_SECONDS
+        value: "60"
+      - key: QUOTE_POLL_INTERVAL_SECONDS
+        value: "10"
+      - key: RISK_FREE_RATE
+        value: "0.045"
+      - key: LOG_LEVEL
+        value: INFO
+      # Set these secret values in the Render dashboard → Environment tab:
+      # FRED_API_KEY  (your FRED key)

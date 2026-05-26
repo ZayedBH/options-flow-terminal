@@ -1,14 +1,23 @@
 import { useEffect, useState } from "react";
 
+interface FutsInfo {
+  label: string;
+  multiplier: number;
+  futPrice: number;
+}
+
 interface Props {
   symbols: string[];
   selected: string;
   onSelect: (s: string) => void;
   connected: boolean;
   lastUpdate: string | null;
+  futsEnabled: boolean;
+  onFutsToggle: () => void;
+  futsInfo?: FutsInfo | null;
 }
 
-export function TopBar({ symbols, selected, onSelect, connected, lastUpdate }: Props) {
+export function TopBar({ symbols, selected, onSelect, connected, lastUpdate, futsEnabled, onFutsToggle, futsInfo }: Props) {
   const [clock, setClock] = useState(() => new Date().toLocaleTimeString("en-US", { hour12: false }));
 
   useEffect(() => {
@@ -51,6 +60,31 @@ export function TopBar({ symbols, selected, onSelect, connected, lastUpdate }: P
 
       {/* Spacer */}
       <div className="flex-1" />
+
+      {/* FUTS toggle */}
+      <div className="flex items-center border-l border-bb-border">
+        <button
+          type="button"
+          onClick={onFutsToggle}
+          className={[
+            "px-3 h-full text-[10px] font-bold tracking-widest uppercase transition-colors flex items-center gap-1.5",
+            futsEnabled
+              ? "bg-bb-amber text-black"
+              : "text-bb-muted hover:text-bb-amber hover:bg-[#141414]",
+          ].join(" ")}
+          title="Toggle Futures Strike Translation"
+        >
+          FUTS
+          {futsEnabled && futsInfo && (
+            <span className="font-mono font-normal tracking-normal">
+              {futsInfo.label} {futsInfo.futPrice.toFixed(0)}
+            </span>
+          )}
+          {futsEnabled && !futsInfo && (
+            <span className="font-normal opacity-60">NO DATA</span>
+          )}
+        </button>
+      </div>
 
       {/* Status cluster */}
       <div className="flex items-center gap-0 border-l border-bb-border">

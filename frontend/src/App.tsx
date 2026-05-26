@@ -2,18 +2,23 @@ import { useEffect, useMemo, useState } from "react";
 import { Sidebar, type ViewId } from "./components/Sidebar";
 import { StatusBar } from "./components/StatusBar";
 import { TopBar } from "./components/TopBar";
+import { futuresForSymbol, useFuturesPrices } from "./hooks/useFuturesPrices";
 import { useTerminalStream } from "./hooks/useTerminalStream";
+import { BiasView } from "./views/BiasView";
 import { DashboardView } from "./views/DashboardView";
 import { FlowView } from "./views/FlowView";
 import { LevelsView } from "./views/LevelsView";
+import { MacroView } from "./views/MacroView";
 import { VolView } from "./views/VolView";
 
 export default function App() {
   const stream = useTerminalStream();
   const symbols = useMemo(() => Object.keys(stream.snapshots).sort(), [stream.snapshots]);
+  const futuresPrices = useFuturesPrices();
 
   const [selected, setSelected] = useState<string | null>(null);
   const [activeView, setActiveView] = useState<ViewId>("dashboard");
+  const [futsEnabled, setFutsEnabled] = useState(false);
 
   // Auto-select first available symbol
   useEffect(() => {
@@ -21,6 +26,19 @@ export default function App() {
   }, [symbols, selected]);
 
   const snapshot = selected ? stream.snapshots[selected] : undefined;
+
+  // FUTS: live multiplier from futures price / ETF price
+  const futsInfo = useMemo(() => {
+    if (!futsEnabled || !snapshot) return null;
+    const futKey = futuresForSymbol(snapshot.underlying);
+    if (!futKey) return null;
+    const futPrice = futuresPrices[futKey];
+    if (!futPrice || snapshot.underlying_price <= 0) return null;
+    const multiplier = futPrice / snapshot.underlying_price;
+    const label = futKey === "NQ=F" ? "NQ" : "ES";
+    return { label, multiplier, futPrice };
+  }, [futsEnabled, snapshot, futuresPrices]);
+
   const flowEvents = useMemo(() => {
     if (!selected || !snapshot) return [];
     const fromStream = stream.flow[selected] ?? [];
@@ -29,13 +47,15 @@ export default function App() {
     return [...fromStream, ...fromSnap].slice(0, 300);
   }, [selected, snapshot, stream.flow]);
 
-  // Keyboard shortcut: F1–F4 to switch views
+  // Keyboard shortcuts: F1–F6 to switch views
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key === "F1") { e.preventDefault(); setActiveView("dashboard"); }
       if (e.key === "F2") { e.preventDefault(); setActiveView("flow"); }
       if (e.key === "F3") { e.preventDefault(); setActiveView("vol"); }
       if (e.key === "F4") { e.preventDefault(); setActiveView("levels"); }
+      if (e.key === "F5") { e.preventDefault(); setActiveView("macro"); }
+      if (e.key === "F6") { e.preventDefault(); setActiveView("bias"); }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
@@ -51,13 +71,20 @@ export default function App() {
         onSelect={setSelected}
         connected={stream.connected}
         lastUpdate={stream.lastUpdate}
+        futsEnabled={futsEnabled}
+        onFutsToggle={() => setFutsEnabled((v) => !v)}
+        futsInfo={futsInfo}
       />
 
       <div className="flex flex-1 overflow-hidden">
         <Sidebar active={activeView} onNav={setActiveView} />
 
         <main className="flex-1 overflow-hidden bg-black">
-          {!snapshot ? (
+          {activeView === "macro" ? (
+            <MacroView />
+          ) : activeView === "bias" && snapshot ? (
+            <BiasView snapshot={snapshot} flowEvents={flowEvents} futsInfo={futsInfo} />
+          ) : !snapshot ? (
             <div className="h-full flex flex-col items-center justify-center text-bb-muted text-xs gap-2">
               {stream.error ? (
                 <>
@@ -80,13 +107,13 @@ export default function App() {
           ) : (
             <>
               {activeView === "dashboard" && (
-                <DashboardView snapshot={snapshot} flowEvents={flowEvents} />
+                <DashboardView snapshot={snapshot} flowEvents={flowEvents} futsInfo={futsInfo} />
               )}
               {activeView === "flow" && (
                 <FlowView flowEvents={flowEvents} underlying={snapshot.underlying} />
               )}
               {activeView === "vol" && (
-                <VolView iv={snapshot.iv} underlying={snapshot.underlying} />
+                <VolView iv={snapshot.iv} underlying={snapshot.underlying} spot={snapshot.underlying_price} />
               )}
               {activeView === "levels" && (
                 <LevelsView
@@ -94,6 +121,7 @@ export default function App() {
                   gex={snapshot.gex}
                   spot={snapshot.underlying_price}
                   underlying={snapshot.underlying}
+                  futsInfo={futsInfo}
                 />
               )}
             </>

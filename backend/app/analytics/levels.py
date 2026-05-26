@@ -4,7 +4,12 @@ from __future__ import annotations
 from app.schemas import GEXProfile, KeyLevel
 
 
-def key_levels_from_gex(gex: GEXProfile, *, top_n: int = 6) -> list[KeyLevel]:
+def key_levels_from_gex(
+    gex: GEXProfile,
+    *,
+    max_pain: float | None = None,
+    top_n: int = 6,
+) -> list[KeyLevel]:
     """Translate the most significant GEX strikes into KeyLevel entries."""
     levels: list[KeyLevel] = []
     if gex.gamma_flip is not None:
@@ -35,6 +40,17 @@ def key_levels_from_gex(gex: GEXProfile, *, top_n: int = 6) -> list[KeyLevel]:
                 kind="put_wall",
                 strength=0.9,
                 note="Largest negative dealer gamma strike",
+            )
+        )
+
+    if max_pain is not None:
+        levels.append(
+            KeyLevel(
+                price=max_pain,
+                label="Max Pain",
+                kind="max_pain",
+                strength=0.85,
+                note="Strike that minimizes total intrinsic value of open options (price magnet at expiry)",
             )
         )
 

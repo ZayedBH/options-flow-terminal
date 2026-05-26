@@ -1,4 +1,4 @@
-import type { FlowEvent, TerminalSnapshot } from "../types";
+import type { FlowEvent, GEXHistoryPoint, TerminalSnapshot } from "../types";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
 const WS_BASE = import.meta.env.VITE_WS_BASE_URL ?? "ws://localhost:8000";
@@ -27,6 +27,24 @@ export async function fetchSnapshot(symbol: string): Promise<TerminalSnapshot> {
 export async function fetchFlow(symbol: string, limit = 100): Promise<FlowEvent[]> {
   const r = await fetch(`${API_BASE}/flow/${symbol}?limit=${limit}`);
   if (!r.ok) throw new Error(`flow ${r.status}`);
+  return r.json();
+}
+
+export async function fetchMacro(): Promise<Record<string, unknown>> {
+  const r = await fetch(`${API_BASE}/macro`);
+  if (!r.ok) throw new Error(`macro ${r.status}`);
+  return r.json();
+}
+
+export async function fetchFuturesPrices(): Promise<Record<string, number | null>> {
+  const r = await fetch(`${API_BASE}/futures-prices`);
+  if (!r.ok) throw new Error(`futures-prices ${r.status}`);
+  return r.json();
+}
+
+export async function fetchGEXHistory(symbol: string): Promise<GEXHistoryPoint[]> {
+  const r = await fetch(`${API_BASE}/history/${symbol}`);
+  if (!r.ok) throw new Error(`history ${r.status}`);
   return r.json();
 }
 

@@ -7,20 +7,22 @@ export function CommentaryPanel({ commentary, notes }: Props) {
   return (
     <div className="panel">
       <div className="panel-hdr">
-        <span>AI Commentary</span>
-        <span className="text-bb-muted normal-case font-normal">analyst</span>
+        <span>Commentary</span>
+        <span className="normal-case font-normal text-[9px]" style={{ color: "#333" }}>
+          analyst
+        </span>
       </div>
-      <div className="px-2 py-2 text-xs leading-relaxed text-bb-text">
+      <div className="px-3 py-2 text-[11px] leading-relaxed" style={{ color: "#999" }}>
         {commentary ?? (
-          <span className="text-bb-muted">No commentary yet — waiting for data…</span>
+          <span style={{ color: "#333" }}>No commentary yet — waiting for data…</span>
         )}
       </div>
       {notes && notes.length > 0 && (
-        <div className="border-t border-bb-divider px-2 py-1.5 space-y-1">
+        <div className="px-3 py-1.5 space-y-1" style={{ borderTop: "1px solid #0d0d0d" }}>
           {notes.map((n, i) => (
-            <div key={i} className="text-[10px] text-bb-muted flex gap-1.5">
-              <span className="text-bb-amber shrink-0">›</span>
-              <span>{n}</span>
+            <div key={i} className="text-[9px] flex gap-2" style={{ color: "#444" }}>
+              <span style={{ color: "#ff8c00", textShadow: "0 0 6px rgba(255,140,0,0.5)" }}>›</span>
+              <span className="leading-snug">{n}</span>
             </div>
           ))}
         </div>
